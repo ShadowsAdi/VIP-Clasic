@@ -9,13 +9,14 @@
 #include < amxmisc >
 #include < cstrike >
 #include < engine >
+#include < fakemeta >
 #include < fun >
 #include < hamsandwich >
 
 #pragma semicolon 1
 
 #define PLUGIN "VIP Clasic"
-#define VERSION "1.5"
+#define VERSION "1.7"
 #define AUTHOR "Shadows Adi"
 
 //Aici modifici 'ADMIN_LEVEL_H' in functie de flagul pe care il vrei. Default: 't'
@@ -32,6 +33,8 @@ enum _:CvarsSettings {
 	VipMaxHP,
 	VipMaxAP,
 	VipPrefix,
+	VipSpawnHP,
+	VipSpawnAP,
 #if defined VIP_CHAT
 	VipChatPrefix,
 #endif
@@ -39,34 +42,40 @@ enum _:CvarsSettings {
 	VipPrices,
 	VipMenuRounds,
 	VipFree,
-	g_type,
-	g_recieved
+	VipFreeStart,
+	VIpFreeEnd,
+	VipMaxResets
+};
 
+enum _:Teams
+{
+	CT = 0,
+	TERO
 };
 
 enum _:Weapons {
 	WeapName[64],
 	WeaponID[32],
-	BpAmmo
+	BpAmmo,
+	Team[Teams]
 };
 
 new const VipWeapons[][Weapons] = {
-	{ "AK47 \d+ \wDeagle \d+ \wGrenade Set", "weapon_ak47", 90 },
-	{ "M4A1 \d+ \wDeagle \d+ \wGrenade Set","weapon_m4a1", 90 },
-	{ "AWP \d+ \wDeagle \d+ \wGrenade Set", "weapon_awp", 30 }
-};
-
-new const VipPistols[][Weapons] = {
-	{ "\wDeagle \d+ \wGrenade Set", "weapon_deagle", 35 },
-	{ "\wUSP \d+ \wGrenade Set","weapon_usp", 100 },
-	{ "\wGlock-18 \d+ \wGrenade Set", "weapon_glock18", 120 }
+	{ "AK47 \d+ \wDeagle \d+ \wSet Grenade", "weapon_ak47", 90, TERO },
+	{ "Galil \d+ \wDeagle \d+ \wSet Grenade", "weapon_galil", 30, TERO },
+	{ "AWP \d+ \wDeagle \d+ \wSet Grenade", "weapon_awp", 30, TERO },
+	{ "M4A1 \d+ \wDeagle \d+ \wSet Grenade", "weapon_m4a1", 90, CT },
+	{ "AWP \d+ \wDeagle \d+ \wSet Grenade", "weapon_awp", 30, CT },
+	{ "Famas \d+ \wDeagle \d+ \wSet Grenade", "weapon_famas", 30, CT }
+	
 };
 
 new pCvars[CvarsSettings];
 new g_iRound;
 new jumpnum[ 33 ] = 0;
 new g_bMapBanned;
-new g_iHudMessages[2];
+new Limit [ 33 ];
+new Tag[ 32 ];
 
 /********************** BOOLEANS **********************/
 new bool:WeaponSelected[33];
@@ -84,9 +93,11 @@ public plugin_init( )
 	register_clcmd( "say /vmenu", "ShowVIPMenu" );
 	register_clcmd( "say /vip", "ShowVIPMotd" );
 	register_clcmd( "say /vips", "ShowVIPs" );
+	register_clcmd( "say /rsd", "check_vip" );
 	register_clcmd( "say_team /vm", "ShowVIPMenu" );
 	register_clcmd( "say_team /vmenu", "ShowVIPMenu" );
 	register_clcmd( "say_team /vips", "ShowVIPs" );
+	register_clcmd( "say_team /rsd", "check_vip" );
 	
 	register_cvar( "lgcs_vip_version", VERSION, FCVAR_SERVER | FCVAR_SPONLY | FCVAR_UNLOGGED );
 	pCvars [ VipHP ] = register_cvar( "vip_kill_hp", "10" );
@@ -96,6 +107,8 @@ public plugin_init( )
 	pCvars [ VipMaxHP ] = register_cvar( "vip_max_hp", "110" );
 	pCvars [ VipMaxAP ] = register_cvar( "vip_max_ap", "110" );
 	pCvars [ VipPrefix ] = register_cvar( "vip_msg_prefix", "[VIP]" );
+	pCvars [ VipSpawnHP ] = register_cvar("vip_spawn_hp", "100");
+	pCvars [ VipSpawnAP ] = register_cvar("vip_spawn_ap", "100");
 	
 	#if defined VIP_CHAT
 	register_clcmd( "say ", "hook_say" );
@@ -107,20 +120,17 @@ public plugin_init( )
 	pCvars [ VipPrices ] = register_cvar( "vip_prices_motd", "vip_info.html" );
 	pCvars [ VipMenuRounds ] = register_cvar( "vip_rounds_showmenu", "3" );
 	pCvars [ VipFree ] = register_cvar( "vip_free_on", "1" );
-	pCvars [ g_type ] = register_cvar("amx_bulletdamage","1");
-	pCvars [ g_recieved ] = register_cvar("amx_bulletdamage_recieved","1");    
-
+	pCvars [ VipFreeStart ] = register_cvar( "vip_free_start", "22" );
+	pCvars [ VIpFreeEnd ] = register_cvar( "vip_free_end", "10" );
+	pCvars [ VipMaxResets ] = register_cvar( "vip_max_reset_deaths", "3" );
+	
 	RegisterHam( Ham_Spawn, "player", "ham_PlayerSpawnPost", 1);
 	RegisterHam( Ham_Killed, "player", "ham_PlayerKilled", 1);
-	register_event( "HLTV", "ev_NewRound", "a", "1=0", "2=0" );
-	register_event("Damage", "on_damage", "b", "2!0", "3=0", "4!0");   
+	register_event( "HLTV", "ev_NewRound", "a", "1=0", "2=0" ); 
 	register_logevent( "logev_Restart", 2, "1&Restart_Round", "1&Game_Commencing" );
 	register_message(get_user_msgid("ScoreAttrib"), "OnScoreAttrib");
 	
-	for(new i; i < sizeof( g_iHudMessages ); i++)
-	{
-		g_iHudMessages[i] = CreateHudSyncObj();
-	}
+	get_pcvar_string( pCvars[ VipPrefix ], Tag, charsmax( Tag ) );
 
 	new path[ 64 ];
 	get_localinfo( "amxx_configsdir", path, charsmax( path ) );
@@ -158,17 +168,18 @@ public plugin_init( )
 			g_bMapBanned = 1;
 			break;
 		}
-		
 	}
 	fclose( file );
 }
 
 public client_putinserver( id )
 {
-	new Tag[32], szName[32];
-	get_pcvar_string( pCvars[ VipPrefix ], Tag, charsmax( Tag ) );
-	get_user_name( id, szName, charsmax( szName ) );
-	color_chat(0, "!g%s !yVIP-ul !g%s !ytocmai s-a conectat pe server!", Tag, szName);
+	if( is_user_vip( id ) )
+	{
+		new szName[32];
+		get_user_name( id, szName, charsmax( szName ) );
+		color_chat(0, "!g%s !yVIP-ul !g%s !ytocmai s-a conectat pe server!", Tag, szName);
+	}
 	jumpnum[ id ] = 0;
 	dojump[ id ] = false;
 }
@@ -186,6 +197,11 @@ public client_disconnected( id )
 public ev_NewRound( )
 {
 	g_iRound++;
+
+	if( IsVipHour( get_pcvar_num( pCvars [ VipFreeStart ] ), get_pcvar_num( pCvars [ VIpFreeEnd ] ) ) )
+		set_pcvar_string( pCvars [ VipFree ], "1" );
+	else
+		set_pcvar_string( pCvars [ VipFree ], "0" );
 }
 
 public logev_Restart( )
@@ -193,58 +209,101 @@ public logev_Restart( )
 	g_iRound = 0;
 }
 
+public check_vip( id )
+{
+	if( is_user_vip( id ) )
+	{
+		vip_rs( id );
+	}
+	else
+	{
+		color_chat( id, "^3| ^4%s^3| ^1Aceasta comanda este doar pentru membrii ^4V.I.P. ^1!", Tag );
+		return 1;
+	}
+	return 0;
+}
+
+public vip_rs(id)
+{
+	if(Limit [ id ] >= get_pcvar_num( pCvars[ VipMaxResets ] ) )
+	{
+		color_chat(id, "^3| ^4%s ^3| ^1Aceasta comanda poate fi folosita decat de ^4 3 ^1ori pe ^4harta ^1!", Tag );
+		return 1;
+	}
+	else
+	{
+		cmd_rs(id);
+		Limit[id]++;
+	}
+	return 0;
+}
+
+public cmd_rs(id)
+{
+
+	if(get_user_deaths(id) == 0)
+	{
+		color_chat(id, "^3| ^4%s ^3| ^1Death-urile tale sunt deja ^4 0^3!", Tag );
+	}
+	else 
+	{
+		cs_set_user_deaths(id,0);
+		color_chat(id, "^3| ^4%s ^3| ^4Decesele tale ^1au fost ^4resetate^1!", Tag );
+	}
+	return PLUGIN_HANDLED;
+}
+
 public ShowVIPMenu( id )
 {
 	if(!is_user_connected(id) || !is_user_alive(id)) 
 		return PLUGIN_HANDLED;
-
-	new Tag[32];
-	get_pcvar_string( pCvars[ VipPrefix ], Tag, charsmax( Tag ) );
 	
 	if(is_user_vip( id ) || get_pcvar_num( pCvars[ VipFree ] ) )
 	{
 		if(g_bMapBanned)
 		{
-			color_chat(id, "!g%s !yVIP-ul este dezactivat pe harti awp_!g!", Tag);
+			color_chat(id, "!g%s !yVIP-ul este dezactivat pe aceasta harta!g!", Tag);
 			return PLUGIN_HANDLED;
 		}
 		else
 		{
-			if( g_iRound >= get_pcvar_num( pCvars[ VipMenuRounds ] ) )
+			if(!WeaponSelected [ id ] )
 			{
-				if(!WeaponSelected [ id ] )
+				new g_iMenu = menu_create("\wVIP Menu", "handle_vip_menu_weapons" );
+				new szItem[32], CsTeams:iTeam;
+
+				iTeam = cs_get_user_team(id);
+				
+				for ( new i; i < sizeof VipWeapons; i++ )
 				{
-					new g_iMenu = menu_create("\wVIP Menu", "handle_vip_menu_weapons" );
-					
-					for ( new i; i < sizeof VipWeapons; i++ )
-						menu_additem( g_iMenu, VipWeapons[ i ][ WeapName ] );
-					
-					menu_setprop(g_iMenu, MPROP_EXIT, MEXIT_ALL);
-					menu_display( id, g_iMenu );
+					switch(iTeam)
+					{
+						case CS_TEAM_T:
+						{
+							if(VipWeapons[i][Team] == TERO)
+							{
+								num_to_str(i, szItem, charsmax(szItem));
+								menu_additem( g_iMenu, VipWeapons[ i ][ WeapName ], szItem );
+							}
+						}
+						case CS_TEAM_CT:
+						{
+							if(VipWeapons[i][Team] == CT)
+							{
+								num_to_str(i, szItem, charsmax(szItem));
+								menu_additem( g_iMenu, VipWeapons[ i ][ WeapName ], szItem );
+							}
+						}
+					}
 				}
-				else 
-				{
-					color_chat( id, "!g%s!y: Asteapta runda viitoare pentru a-ti alege iar armele!", Tag );
-					return PLUGIN_HANDLED;
-				}
+				
+				menu_setprop(g_iMenu, MPROP_EXIT, MEXIT_ALL);
+				menu_display( id, g_iMenu );
 			}
 			else 
 			{
-				if(!WeaponSelected [ id ] )
-				{
-					new g_iMenu = menu_create("\wVIP Menu", "handle_vip_menu_pistols" );
-					
-					for ( new i; i < sizeof VipPistols; i++ )
-						menu_additem( g_iMenu, VipPistols[ i ][ WeapName ] );
-						
-					menu_setprop(g_iMenu, MPROP_EXIT, MEXIT_ALL);
-					menu_display( id, g_iMenu );
-				}
-				else 
-				{
-					color_chat( id, "!g%s!y: Asteapta runda viitoare pentru a-ti alege iar armele!", Tag );
-					return PLUGIN_HANDLED;
-				}
+				color_chat( id, "!g%s!y: Asteapta runda viitoare pentru a-ti alege iar armele!", Tag );
+				return PLUGIN_HANDLED;
 			}
 		}
 	}
@@ -258,9 +317,15 @@ public ShowVIPMenu( id )
 
 public handle_vip_menu_weapons( id, menu, item )
 {
-	if( item == MENU_EXIT || !is_user_alive( id ) || !is_user_connected(id))
+	if( item == MENU_EXIT || !is_user_alive( id ))
 		menu_destroy( menu );
-		
+	
+	new itemdata[3];
+	new data[6][32];
+	new index[32];
+	menu_item_getinfo(menu, item, itemdata[0], data[0], charsmax(data), data[1], charsmax(data), itemdata[1]);
+	parse(data[0], index, 31);
+	item = str_to_num(index);
 	if( is_user_vip( id ) || get_pcvar_num( pCvars[ VipFree ] ) )
 	{
 		drop_weapons( id, 1);
@@ -278,28 +343,6 @@ public handle_vip_menu_weapons( id, menu, item )
 	return PLUGIN_HANDLED;
 }
 
-public handle_vip_menu_pistols( id, menu, item )
-{
-	if( item == MENU_EXIT || !is_user_alive( id ) || !is_user_connected(id))
-		menu_destroy( menu );
-		
-	if(!is_user_alive(id) || !is_user_connected(id))
-		return PLUGIN_HANDLED;
-		
-	if( is_user_vip( id ) || get_pcvar_num( pCvars[ VipFree ] ) )
-	{
-		drop_weapons( id, 2);
-		give_item( id, "weapon_knife" );
-		give_item( id, "weapon_hegrenade" );
-		give_item( id, "weapon_flashbang" );
-		cs_set_user_bpammo( id, CSW_FLASHBANG, 2 );
-		WeaponSelected [ id ] = true;
-		give_item( id, VipPistols[ item ][ WeaponID ] );
-		cs_set_user_bpammo( id, get_weaponid( VipPistols[ item ][ WeaponID ] ), VipPistols[ item ][ BpAmmo ] );
-	}
-	return PLUGIN_HANDLED;
-}
-
 public ham_PlayerSpawnPost( id )
 {
 	if(!is_user_alive( id ) )
@@ -311,10 +354,13 @@ public ham_PlayerSpawnPost( id )
 		
 		ShowVIPMenu( id );
 		
-		cs_set_user_armor( id, 100, CsArmorType:2 );
+		cs_set_user_armor( id, 100, CS_ARMOR_VESTHELM );
 		
 		if( get_user_team( id ) == 2 )
 			give_item( id, "item_thighpack" );
+
+		cs_set_user_armor(id, get_pcvar_num(pCvars [ VipSpawnAP ]), CS_ARMOR_VESTHELM);
+		set_user_health(id, get_pcvar_num(pCvars [ VipSpawnHP ]));
 	}
 	return PLUGIN_HANDLED;
 }
@@ -366,61 +412,44 @@ public ham_PlayerKilled( iVictim, iAttacker )
 	return PLUGIN_HANDLED;
 }
 
-public on_damage( id ) 
+public client_PreThink(id)
 {
-	if( get_pcvar_num( g_type ) ) 
-	{     
-		static attacker; attacker = get_user_attacker( id );
-		static damage; damage = read_data( 2 );                  
-			set_hudmessage( 255, 0, 0, 0.45, 0.50, 2, 0.1, 4.0, 0.1, 0.1, -1 );
-			ShowSyncHudMsg(id, g_iHudMessages[ 1 ], "%i^n", damage);         
-
-		if( is_user_connected( attacker ) && is_user_vip( attacker ) == 1)
-		{ 
-			set_hudmessage( 0, 100, 200, -1.0, 0.55, 2, 0.1, 4.0, 0.02, 0.02, -1 ); 
-			ShowSyncHudMsg( attacker, g_iHudMessages[ 0 ], "%i^n", damage );               
-		} 
-	} 
-}
-
-public client_PreThink( id )
-{
-	if( !is_user_alive( id ) ) return PLUGIN_CONTINUE;
+	if(!is_user_alive(id)) return PLUGIN_CONTINUE;
 	
-	new nbut = get_user_button( id );
-	new obut = get_user_oldbutton( id );
-	if( ( nbut & IN_JUMP ) && !( get_entity_flags( id ) & FL_ONGROUND ) && !( obut & IN_JUMP ) )
+	new nbut = get_user_button(id);
+	new obut = get_user_oldbutton(id);
+	if((nbut & IN_JUMP) && !(get_entity_flags(id) & FL_ONGROUND) && !(obut & IN_JUMP))
 	{
 		if( is_user_vip( id ) || get_pcvar_num( pCvars[ VipFree ] ) )
 		{
-			if(jumpnum[ id ] < get_pcvar_num( pCvars[ VipJumps ] ))
+			if(jumpnum[id] < get_pcvar_num( pCvars[ VipJumps ] ))
 			{
-				dojump[ id ] = true;
-				jumpnum[ id ]++;
+				dojump[id] = true;
+				jumpnum[id]++;
 				return PLUGIN_CONTINUE;
 			}
 		}
 	}
-	if( ( nbut & IN_JUMP ) && ( get_entity_flags( id ) & FL_ONGROUND ) )
+	if((nbut & IN_JUMP) && (get_entity_flags(id) & FL_ONGROUND))
 	{
-		jumpnum[ id ] = 0;
+		jumpnum[id] = 0;
 		return PLUGIN_CONTINUE;
 	}
 	return PLUGIN_CONTINUE;
 }
 
-public client_PostThink( id )
+public client_PostThink(id)
 {
-	if( !is_user_alive( id ) ) return PLUGIN_CONTINUE;
+	if(!is_user_alive(id)) return PLUGIN_CONTINUE;
 	if( is_user_vip( id ) || get_pcvar_num( pCvars[ VipFree ] ) )
 	{
-		if(dojump[ id ] == true)
+		if(dojump[id] == true)
 		{
-			new Float:velocity[ 3 ]	;
-			entity_get_vector( id, EV_VEC_velocity, velocity );
-			velocity[ 2 ] = random_float( 265.0,285.0 );
-			entity_set_vector( id, EV_VEC_velocity, velocity );
-			dojump[ id ] = false;
+			new Float:velocity[3]	;
+			entity_get_vector(id,EV_VEC_velocity,velocity);
+			velocity[2] = random_float(265.0,285.0);
+			entity_set_vector(id,EV_VEC_velocity,velocity);
+			dojump[id] = false;
 			return PLUGIN_CONTINUE;
 		}
 	}
@@ -440,14 +469,10 @@ public hook_say( id )
 		remove_quotes( szMessage );
 		
 		if( is_user_alive( id ) )
-		{
 			color_chat( 0, "!g%s!team %s!y: %s", szPrefix, szName, szMessage );
-		}
-		
-		else
-		{	
+			
+		else if(!is_user_alive( id ) )
 			color_chat( 0, "!y*DEAD* !g%s!team %s!y: %s", szPrefix, szName, szMessage );
-		}
 	}
 	else 
 	{
@@ -458,14 +483,10 @@ public hook_say( id )
 		remove_quotes( szMessage );
 		
 		if( is_user_alive( id ) )
-		{
 			color_chat( 0, "!team %s!y: %s", szName, szMessage );
-		}
 			
-		else
-		{
+		else if(!is_user_alive( id ) )
 			color_chat( 0, "!y*DEAD* %s!team %s!y: %s", szName, szMessage );
-		}
 	}
 	return PLUGIN_HANDLED;
 }
@@ -483,26 +504,18 @@ public hook_sayteam( id )
 		if(get_user_team( id ) == 1 )
 		{
 			if( is_user_alive( id ) )
-			{
 				color_chat( 0, "!y(Terrorist) !g%s!team %s!y: %s", szPrefix, szName, szMessage );
-			}
 				
-			else 
-			{
+			else if( !is_user_alive( id ) )
 				color_chat( 0, "!y*DEAD* (Terrorist) !g%s!team %s!y: %s", szPrefix, szName, szMessage );
-			}
 		}
 		if(get_user_team( id ) == 2 )
 		{
 			if( is_user_alive( id ) )
-			{
 				color_chat( 0, "!y(Counter-Terrorist) !g%s!team %s!y: %s", szPrefix, szName, szMessage );
-			}
 				
-			else
-			{
+			else if( !is_user_alive( id ) )
 				color_chat( 0, "!y*DEAD* (Counter-Terrorist) !g%s!team %s!y: %s", szPrefix, szName, szMessage );
-			}
 		}
 	}
 	else
@@ -515,26 +528,18 @@ public hook_sayteam( id )
 		if(get_user_team( id ) == 1 )
 		{
 			if( is_user_alive( id ) )
-			{
 				color_chat( 0, "!y(Terrorist)!team %s!y: %s", szName, szMessage );
-			}
 				
-			else 
-			{
+			else if( !is_user_alive( id ) )
 				color_chat( 0, "!y*DEAD* (Terrorist)!team %s!y: %s", szName, szMessage );
-			}
 		}
 		if(get_user_team( id ) == 2 )
 		{
 			if( is_user_alive( id ) )
-			{
 				color_chat( 0, "!y(Counter-Terrorist)!team %s!y: %s", szName, szMessage );
-			}
 				
-			else
-			{
+			else if( !is_user_alive( id ) )
 				color_chat( 0, "!y*DEAD* (Counter-Terrorist)!team %s!y: %s", szName, szMessage );
-			}
 		}
 	}
 	
@@ -560,7 +565,7 @@ public ShowVIPMotd(id)
 
 public OnScoreAttrib( iMsgId, iMsgDest, iMsgEnt )
 {
-	if( is_user_vip( get_msg_arg_int( 1 ) ) )
+	if( is_user_vip( get_msg_arg_int( 1 ) ) || get_pcvar_num( pCvars[ VipFree ] ) )
 		set_msg_arg_int( 2, ARG_BYTE, ( 1<<2 ) );
 }
 
@@ -595,10 +600,16 @@ public ShowVIPs( id )
 	else 
 	{
 		len += format( message[ len ], charsmax( message ) - len, "No VIP online.");
-		color_chat( id, message);
+		color_chat( id, message );
 	}
 	return PLUGIN_CONTINUE;
 }
+
+bool:IsVipHour( iStart, iEnd ) //Credits OciXCrom
+{
+    new iHour; time( iHour );
+    return bool:( iStart < iEnd ? ( iStart <= iHour < iEnd ) : ( iStart <= iHour || iHour < iEnd ) );
+} 
 
 stock drop_weapons(id, dropwhat)
 {
