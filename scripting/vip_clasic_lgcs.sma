@@ -261,9 +261,6 @@ public handle_vip_menu_weapons( id, menu, item )
 	if( item == MENU_EXIT || !is_user_alive( id ) || !is_user_connected(id))
 		menu_destroy( menu );
 		
-	if(!is_user_alive(id) || !is_user_connected(id))
-		return PLUGIN_HANDLED;
-		
 	if( is_user_vip( id ) || get_pcvar_num( pCvars[ VipFree ] ) )
 	{
 		drop_weapons( id, 1);
