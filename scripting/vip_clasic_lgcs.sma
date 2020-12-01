@@ -50,7 +50,8 @@ enum _:CvarsSettings {
 enum _:Teams
 {
 	CT = 0,
-	TERO
+	TERO,
+	BOTH
 };
 
 enum _:Weapons {
@@ -63,11 +64,15 @@ enum _:Weapons {
 new const VipWeapons[][Weapons] = {
 	{ "AK47 \d+ \wDeagle \d+ \wSet Grenade", "weapon_ak47", 90, TERO },
 	{ "Galil \d+ \wDeagle \d+ \wSet Grenade", "weapon_galil", 30, TERO },
-	{ "AWP \d+ \wDeagle \d+ \wSet Grenade", "weapon_awp", 30, TERO },
+	{ "AWP \d+ \wDeagle \d+ \wSet Grenade", "weapon_awp", 30, BOTH },
 	{ "M4A1 \d+ \wDeagle \d+ \wSet Grenade", "weapon_m4a1", 90, CT },
-	{ "AWP \d+ \wDeagle \d+ \wSet Grenade", "weapon_awp", 30, CT },
 	{ "Famas \d+ \wDeagle \d+ \wSet Grenade", "weapon_famas", 30, CT }
-	
+};
+
+new const VipPistols[][Weapons] = {
+	{ "\wDeagle \d+ \wGrenade Set", "weapon_deagle", 35, BOTH },		
+	{ "\wUSP \d+ \wGrenade Set","weapon_usp", 100, BOTH },	
+	{ "\wGlock-18 \d+ \wGrenade Set", "weapon_glock18", 120, BOTH }	
 };
 
 new pCvars[CvarsSettings];
@@ -267,43 +272,119 @@ public ShowVIPMenu( id )
 		}
 		else
 		{
-			if(!WeaponSelected [ id ] )
+			if( g_iRound >= get_pcvar_num( pCvars[ VipMenuRounds ] ) )
 			{
-				new g_iMenu = menu_create("\wVIP Menu", "handle_vip_menu_weapons" );
-				new szItem[32], CsTeams:iTeam;
-
-				iTeam = cs_get_user_team(id);
-				
-				for ( new i; i < sizeof VipWeapons; i++ )
+				if(!WeaponSelected [ id ] )
 				{
-					switch(iTeam)
+					new g_iMenu = menu_create("\wVIP Menu", "handle_vip_menu_weapons" );
+					new szItem[32], CsTeams:iTeam;
+
+					iTeam = cs_get_user_team(id);
+					
+					for ( new i; i < sizeof VipWeapons; i++ )
 					{
-						case CS_TEAM_T:
+						switch(iTeam)
 						{
-							if(VipWeapons[i][Team] == TERO)
+							case CS_TEAM_T:
 							{
-								num_to_str(i, szItem, charsmax(szItem));
-								menu_additem( g_iMenu, VipWeapons[ i ][ WeapName ], szItem );
+								switch(VipWeapons[i][Team])
+								{
+									case TERO:
+									{
+										num_to_str(i, szItem, charsmax(szItem));
+										menu_additem( g_iMenu, VipWeapons[ i ][ WeapName ], szItem );
+									}
+									case BOTH:
+									{
+										num_to_str(i, szItem, charsmax(szItem));
+										menu_additem( g_iMenu, VipWeapons[ i ][ WeapName ], szItem );
+									}
+								}
 							}
-						}
-						case CS_TEAM_CT:
-						{
-							if(VipWeapons[i][Team] == CT)
+							case CS_TEAM_CT:
 							{
-								num_to_str(i, szItem, charsmax(szItem));
-								menu_additem( g_iMenu, VipWeapons[ i ][ WeapName ], szItem );
+								switch(VipWeapons[i][Team])
+								{
+									case CT:
+									{
+										num_to_str(i, szItem, charsmax(szItem));
+										menu_additem( g_iMenu, VipWeapons[ i ][ WeapName ], szItem );
+									}
+									case BOTH:
+									{
+										num_to_str(i, szItem, charsmax(szItem));
+										menu_additem( g_iMenu, VipWeapons[ i ][ WeapName ], szItem );
+									}
+								}
 							}
 						}
 					}
+					
+					menu_setprop(g_iMenu, MPROP_EXIT, MEXIT_ALL);
+					menu_display( id, g_iMenu );
 				}
-				
-				menu_setprop(g_iMenu, MPROP_EXIT, MEXIT_ALL);
-				menu_display( id, g_iMenu );
+				else 
+				{
+					color_chat( id, "!g%s!y: Asteapta runda viitoare pentru a-ti alege iar armele!", Tag );
+					return PLUGIN_HANDLED;
+				}
 			}
-			else 
+			else
 			{
-				color_chat( id, "!g%s!y: Asteapta runda viitoare pentru a-ti alege iar armele!", Tag );
-				return PLUGIN_HANDLED;
+				if(!WeaponSelected [ id ] )
+				{
+					new g_iMenu = menu_create("\wVIP Menu", "handle_vip_menu_weapons" );
+					new szItem[32], CsTeams:iTeam;
+
+					iTeam = cs_get_user_team(id);
+					
+					for ( new i; i < sizeof VipPistols; i++ )
+					{
+						switch(iTeam)
+						{
+							case CS_TEAM_T:
+							{
+								switch(VipPistols[i][Team])
+								{
+									case TERO:
+									{
+										num_to_str(i, szItem, charsmax(szItem));
+										menu_additem( g_iMenu, VipPistols[ i ][ WeapName ], szItem );
+									}
+									case BOTH:
+									{
+										num_to_str(i, szItem, charsmax(szItem));
+										menu_additem( g_iMenu, VipPistols[ i ][ WeapName ], szItem );
+									}
+								}
+							}
+							case CS_TEAM_CT:
+							{
+								switch(VipPistols[i][Team])
+								{
+									case CT:
+									{
+										num_to_str(i, szItem, charsmax(szItem));
+										menu_additem( g_iMenu, VipPistols[ i ][ WeapName ], szItem );
+									}
+									case BOTH:
+									{
+										num_to_str(i, szItem, charsmax(szItem));
+										menu_additem( g_iMenu, VipPistols[ i ][ WeapName ], szItem );
+									}
+								}
+							}
+						}
+					}
+					
+					menu_setprop(g_iMenu, MPROP_EXIT, MEXIT_ALL);
+					menu_display( id, g_iMenu );
+				}
+				else 
+				{
+					color_chat( id, "!g%s!y: Asteapta runda viitoare pentru a-ti alege iar armele!", Tag );
+					return PLUGIN_HANDLED;
+				}
 			}
 		}
 	}
@@ -342,6 +423,29 @@ public handle_vip_menu_weapons( id, menu, item )
 	}
 	return PLUGIN_HANDLED;
 }
+
+public handle_vip_menu_pistols( id, menu, item )	
+{	
+	if( item == MENU_EXIT || !is_user_alive( id ) || !is_user_connected(id))	
+		menu_destroy( menu );	
+			
+	if(!is_user_alive(id) || !is_user_connected(id))	
+		return PLUGIN_HANDLED;	
+			
+	if( is_user_vip( id ) || get_pcvar_num( pCvars[ VipFree ] ) )	
+	{	
+		drop_weapons( id, 2);	
+		give_item( id, "weapon_knife" );	
+		give_item( id, "weapon_hegrenade" );	
+		give_item( id, "weapon_flashbang" );	
+		cs_set_user_bpammo( id, CSW_FLASHBANG, 2 );	
+		WeaponSelected [ id ] = true;	
+		give_item( id, VipPistols[ item ][ WeaponID ] );	
+		cs_set_user_bpammo( id, get_weaponid( VipPistols[ item ][ WeaponID ] ), VipPistols[ item ][ BpAmmo ] );	
+	}	
+	return PLUGIN_HANDLED;	
+}	
+
 
 public ham_PlayerSpawnPost( id )
 {
