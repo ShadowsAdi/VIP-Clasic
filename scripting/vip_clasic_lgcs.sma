@@ -289,12 +289,7 @@ public ShowVIPMenu( id )
 							{
 								switch(VipWeapons[i][Team])
 								{
-									case TERO:
-									{
-										num_to_str(i, szItem, charsmax(szItem));
-										menu_additem( g_iMenu, VipWeapons[ i ][ WeapName ], szItem );
-									}
-									case BOTH:
+									case TERO, BOTH:
 									{
 										num_to_str(i, szItem, charsmax(szItem));
 										menu_additem( g_iMenu, VipWeapons[ i ][ WeapName ], szItem );
@@ -305,12 +300,7 @@ public ShowVIPMenu( id )
 							{
 								switch(VipWeapons[i][Team])
 								{
-									case CT:
-									{
-										num_to_str(i, szItem, charsmax(szItem));
-										menu_additem( g_iMenu, VipWeapons[ i ][ WeapName ], szItem );
-									}
-									case BOTH:
+									case CT, BOTH:
 									{
 										num_to_str(i, szItem, charsmax(szItem));
 										menu_additem( g_iMenu, VipWeapons[ i ][ WeapName ], szItem );
@@ -333,7 +323,7 @@ public ShowVIPMenu( id )
 			{
 				if(!WeaponSelected [ id ] )
 				{
-					new g_iMenu = menu_create("\wVIP Menu", "handle_vip_menu_weapons" );
+					new g_iMenu = menu_create("\wVIP Menu", "handle_vip_menu_pistols" );
 					new szItem[32], CsTeams:iTeam;
 
 					iTeam = cs_get_user_team(id);
@@ -346,12 +336,7 @@ public ShowVIPMenu( id )
 							{
 								switch(VipPistols[i][Team])
 								{
-									case TERO:
-									{
-										num_to_str(i, szItem, charsmax(szItem));
-										menu_additem( g_iMenu, VipPistols[ i ][ WeapName ], szItem );
-									}
-									case BOTH:
+									case TERO, BOTH:
 									{
 										num_to_str(i, szItem, charsmax(szItem));
 										menu_additem( g_iMenu, VipPistols[ i ][ WeapName ], szItem );
@@ -362,12 +347,7 @@ public ShowVIPMenu( id )
 							{
 								switch(VipPistols[i][Team])
 								{
-									case CT:
-									{
-										num_to_str(i, szItem, charsmax(szItem));
-										menu_additem( g_iMenu, VipPistols[ i ][ WeapName ], szItem );
-									}
-									case BOTH:
+									case CT, BOTH:
 									{
 										num_to_str(i, szItem, charsmax(szItem));
 										menu_additem( g_iMenu, VipPistols[ i ][ WeapName ], szItem );
