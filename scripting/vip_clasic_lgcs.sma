@@ -654,7 +654,7 @@ public OnScoreAttrib( iMsgId, iMsgDest, iMsgEnt )
 {
 	if( is_user_vip( get_msg_arg_int( 1 ) ) || get_pcvar_num( pCvars[ VipFree ] ) )
 	{
-		if(is_user_alive(id)
+		if(is_user_alive(get_msg_arg_int( 1 )))
 		{
 			set_msg_arg_int( 2, ARG_BYTE, ( 1<<2 ) );
 		}
