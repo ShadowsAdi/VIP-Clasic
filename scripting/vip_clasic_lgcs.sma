@@ -379,7 +379,10 @@ public ShowVIPMenu( id )
 public handle_vip_menu_weapons( id, menu, item )
 {
 	if( item == MENU_EXIT || !is_user_alive( id ))
+	{
 		menu_destroy( menu );
+		return PLUGIN_HANDLED;
+	}
 	
 	new itemdata[3];
 	new data[6][32];
