@@ -409,15 +409,22 @@ public handle_vip_menu_weapons( id, menu, item )
 
 public handle_vip_menu_pistols( id, menu, item )	
 {	
-	if( item == MENU_EXIT || !is_user_alive( id ) || !is_user_connected(id))	
-		menu_destroy( menu );	
-			
-	if(!is_user_alive(id) || !is_user_connected(id))	
-		return PLUGIN_HANDLED;	
-			
+	if( item == MENU_EXIT || !is_user_alive( id ) || !is_user_connected(id))
+	{
+		menu_destroy( menu );
+		return PLUGIN_HANDLED;
+	}
+	
+	new itemdata[3];
+	new data[6][32];
+	new index[32];
+	menu_item_getinfo(menu, item, itemdata[0], data[0], charsmax(data), data[1], charsmax(data), itemdata[1]);
+	parse(data[0], index, 31);
+	item = str_to_num(index);
+	
 	if( is_user_vip( id ) || get_pcvar_num( pCvars[ VipFree ] ) )	
 	{	
-		drop_weapons( id, 2);	
+		drop_weapons( id, 2 );	
 		give_item( id, "weapon_knife" );	
 		give_item( id, "weapon_hegrenade" );	
 		give_item( id, "weapon_flashbang" );	
