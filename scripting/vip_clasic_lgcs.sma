@@ -660,10 +660,10 @@ public ShowVIPMotd(id)
 
 public OnScoreAttrib( iMsgId, iMsgDest, iMsgEnt )
 {
-	new id = get_msg_arg_int(1)
-	
+	new id = get_msg_arg_int(1);
+
 	if(!is_user_connected(id))
-		return 
+		return;
 
 	if( is_user_vip(id) || get_pcvar_num( pCvars[ VipFree ] ) )
 	{
