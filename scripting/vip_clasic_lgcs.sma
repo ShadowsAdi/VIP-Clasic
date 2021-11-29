@@ -16,7 +16,7 @@
 #pragma semicolon 1
 
 #define PLUGIN "VIP Clasic"
-#define VERSION "1.7"
+#define VERSION "1.8"
 #define AUTHOR "Shadows Adi"
 
 //Aici modifici 'ADMIN_LEVEL_H' in functie de flagul pe care il vrei. Default: 't'
@@ -117,7 +117,7 @@ public plugin_init( )
 	
 	#if defined VIP_CHAT
 	register_clcmd( "say ", "hook_say" );
-	register_clcmd( "say_team ", "hook_sayteam" );
+	//register_clcmd( "say_team ", "hook_sayteam" );
 	pCvars [ VipChatPrefix ] = register_cvar( "vip_chat_prefix", "[VIP]" );
 	#endif
 	
@@ -585,7 +585,7 @@ public hook_say( id )
 	return PLUGIN_HANDLED;
 }
 
-public hook_sayteam( id )
+/*public hook_sayteam( id )
 {
 	if( is_user_vip( id ) || get_pcvar_num( pCvars[ VipFree ] ) )
 	{
@@ -595,6 +595,7 @@ public hook_sayteam( id )
 		
 		read_args( szMessage, charsmax( szMessage ) );
 		remove_quotes( szMessage );
+
 		if(get_user_team( id ) == 1 )
 		{
 			if( is_user_alive( id ) )
@@ -638,7 +639,7 @@ public hook_sayteam( id )
 	}
 	
 	return PLUGIN_HANDLED;
-}
+}*/
 #endif
 
 public ShowVIPMotd(id)
@@ -659,12 +660,14 @@ public ShowVIPMotd(id)
 
 public OnScoreAttrib( iMsgId, iMsgDest, iMsgEnt )
 {
-	if( is_user_vip( get_msg_arg_int( 1 ) ) || get_pcvar_num( pCvars[ VipFree ] ) )
+	new id = get_msg_arg_int(1)
+	
+	if(!is_user_connected(id))
+		return 
+
+	if( is_user_vip(id) || get_pcvar_num( pCvars[ VipFree ] ) )
 	{
-		if(is_user_alive(get_msg_arg_int( 1 )))
-		{
-			set_msg_arg_int( 2, ARG_BYTE, ( 1<<2 ) );
-		}
+		set_msg_arg_int( 2, ARG_BYTE, is_user_alive(id) ? ( 1<<2 ) : ( 1 << 0) );
 	}
 }
 
