@@ -16,8 +16,15 @@
 #pragma semicolon 1
 
 #define PLUGIN "VIP Clasic"
-#define VERSION "1.9"
+#define VERSION "2.0"
 #define AUTHOR "Shadows Adi"
+
+const OFFSET_ID =			43;
+const XO_WEAPON = 			4;
+const OFFSET_WEAPONOWNER = 	41;
+const OFFSET_WEAPON = 		4;
+const OFFSET_DIFF = 		92389;
+stock const m_rgpPlayerItems_CWeaponBox[6] = { 34 , 35 , ... };
 
 //Aici modifici 'ADMIN_LEVEL_H' in functie de flagul pe care il vrei. Default: 't'
 #define is_user_vip(%1) (get_user_flags(%1) & ADMIN_LEVEL_H)
@@ -45,7 +52,8 @@ enum _:CvarsSettings {
 	VipFreeStart,
 	VipFreeEnd,
 	VipMaxResets,
-	VipModels
+	VipModels,
+	VipOnlyAWP
 };
 
 enum _:Teams
@@ -84,6 +92,7 @@ new jumpnum[ 33 ] = 0;
 new g_bMapBanned;
 new Limit [ 33 ];
 new Tag[ 32 ];
+new g_iMaxPlayers;
 
 /********************** BOOLEANS **********************/
 new bool:WeaponSelected[33];
@@ -170,6 +179,8 @@ public plugin_init( )
 	{
 		RegisterHam( Ham_Item_Deploy, g_szWeaponEntName[i], "ham_ItemDeployPost", 1 );
 	}
+
+	RegisterHam( Ham_Touch, "weaponbox", "ham_TouchPre" );
 	register_event( "HLTV", "ev_NewRound", "a", "1=0", "2=0" ); 
 	register_logevent( "logev_Restart", 2, "1&Restart_Round", "1&Game_Commencing" );
 	register_message(get_user_msgid("ScoreAttrib"), "OnScoreAttrib");
@@ -214,6 +225,8 @@ public plugin_init( )
 		}
 	}
 	fclose( file );
+
+	g_iMaxPlayers = get_maxplayers();
 }
 
 RegisterCvars()
@@ -237,6 +250,7 @@ RegisterCvars()
 	pCvars [ VipFreeEnd ] = register_cvar( "vip_free_end", "10" );
 	pCvars [ VipMaxResets ] = register_cvar( "vip_max_reset_deaths", "3" );
 	pCvars [ VipModels ] = register_cvar( "vip_weapon_models", "0" );
+	pCvars [ VipOnlyAWP ] = register_cvar( "vip_awp_only", "0" );
 }
 
 public client_putinserver( id )
@@ -274,6 +288,21 @@ public ev_NewRound( )
 public logev_Restart( )
 {
 	g_iRound = 0;
+}
+
+public CS_OnBuy(id, item)
+{
+	if(!get_pcvar_num(pCvars [ VipOnlyAWP ]))
+		return PLUGIN_CONTINUE;
+
+	if(!is_user_vip(id) && !get_pcvar_num(pCvars[ VipFree ]))
+	{
+		if(item == CSI_AWP)
+		{
+			return PLUGIN_HANDLED;
+		}
+	}
+	return PLUGIN_CONTINUE;
 }
 
 public check_vip( id )
@@ -572,11 +601,6 @@ public ham_ItemDeployPost(iEnt)
 {
 	if(pev_valid(iEnt) != 2 || !get_pcvar_num(pCvars[ VipModels ]))
 		return;
-
-	const OFFSET_WEAPONOWNER = 41;
-	const OFFSET_WEAPON = 4;
-	const OFFSET_ID = 43;
-	const OFFSET_DIFF = 92389;
 	
 	new iPlayer = get_pdata_cbase(iEnt, OFFSET_WEAPONOWNER, OFFSET_WEAPON);
 
@@ -627,6 +651,35 @@ public ham_ItemDeployPost(iEnt)
 			set_pev(iPlayer, pev_viewmodel2, VipPistols[iTemp][WeaponModels]);
 		}
 	}
+}
+
+public ham_TouchPre(iEnt, id)
+{
+	if(!get_pcvar_num( pCvars [ VipOnlyAWP ]))
+	{
+		return HAM_IGNORED;
+	}
+
+	if((0 <= id <= g_iMaxPlayers ) && is_user_alive(id) && IsEntOnGround(iEnt))
+	{
+		new iWeaponEntity = get_pdata_cbase(iEnt, m_rgpPlayerItems_CWeaponBox[1], XO_WEAPON);
+
+		if(iWeaponEntity <= 0)
+		{
+			return HAM_IGNORED;
+		}
+
+		new iWeapon = get_pdata_int(iWeaponEntity, OFFSET_ID, XO_WEAPON);
+		if(!is_user_vip(id) && !get_pcvar_num( pCvars [ VipFree ]))
+		{
+			if(iWeapon == CSW_AWP)
+			{
+				return HAM_SUPERCEDE;
+			}
+		}
+	}
+
+	return HAM_IGNORED;
 }
 
 public client_PreThink(id)
@@ -835,6 +888,15 @@ bool:IsVipHour( iStart, iEnd ) //Credits OciXCrom
     new iHour; time( iHour );
     return bool:( iStart < iEnd ? ( iStart <= iHour < iEnd ) : ( iStart <= iHour || iHour < iEnd ) );
 } 
+
+bool:IsEntOnGround(iEnt)
+{
+	if(pev(iEnt, pev_flags) & FL_ONGROUND)
+	{
+		return true;
+	}
+	return false;
+}
 
 stock drop_weapons(id, dropwhat)
 {
