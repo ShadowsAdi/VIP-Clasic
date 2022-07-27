@@ -830,7 +830,7 @@ public ShowVIPMotd(id)
 	formatex( Temp, charsmax( Temp ), "addons/amxmodx/configs/%s", szString );
 	
 	show_motd( id, Temp, "Avantajele VIP-ului" );
-	color_chat(0, "!g%s !yCiteste despre avantajele !gVIP!y-ului!y!");
+	color_chat(0, "!g%n !yCiteste despre avantajele !gVIP!y-ului!y!", id);
 	return PLUGIN_HANDLED;
 }
 
