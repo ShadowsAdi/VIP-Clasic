@@ -849,7 +849,7 @@ public OnScoreAttrib( iMsgId, iMsgDest, iMsgEnt )
 
 public ShowVIPs( id )
 {
-	if(is_user_connected( id ) )
+	if(!is_user_connected( id ) )
 		return PLUGIN_HANDLED;
 		
 	new vip_name[33];
